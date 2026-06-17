@@ -21,7 +21,7 @@ flowchart LR
         A[data.gouv.fr\nAPI publique]
     end
 
-    subgraph Airflow DAG — 06h00 UTC quotidien
+    subgraph Airflow DAG - 06h00 UTC quotidien
         B[check_csv_available\nHTTP Sensor]
         C[extract_energy_data\nCSV → Parquet]
         D[validate_data_quality\nDataQualityOperator]
