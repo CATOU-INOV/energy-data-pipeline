@@ -1,0 +1,144 @@
+x-airflow-env: &airflow-common-env
+  AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+  AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:${POSTGRES_PASSWORD}@postgres/airflow
+  AIRFLOW__CELERY__BROKER_URL: redis://redis:6379/0
+  AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:${POSTGRES_PASSWORD}@postgres/airflow
+  AIRFLOW__CORE__FERNET_KEY: ${FERNET_KEY}
+  AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+
+x-airflow-depends: &airflow-common-depends
+  depends_on:
+    - postgres
+    - redis
+
+services:
+  # -------------------------
+  # PostgreSQL (metadata)
+  # -------------------------
+  postgres:
+    image: postgres:14
+    container_name: airflow_postgres
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql  # <-- Ajouté
+    ports:
+      - "5432:5432"
+
+  # -------------------------
+  # Redis (Celery broker)
+  # -------------------------
+  redis:
+    image: redis:7
+    container_name: airflow_redis
+    ports:
+      - "6379:6379"
+
+  # -------------------------
+  # Airflow DB Init & Admin User
+  # -------------------------
+  airflow-init:
+    image: apache/airflow:2.7.1
+    container_name: airflow_init
+    environment:
+      <<: *airflow-common-env
+    entrypoint: /bin/bash
+    command: -c "airflow db init && airflow users create \
+        --username admin \
+        --firstname Thomas \
+        --lastname Admin \
+        --role Admin \
+        --email admin@example.com \
+        --password admin"
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./plugins:/opt/airflow/plugins
+      - airflow_logs:/opt/airflow/logs
+    <<: *airflow-common-depends
+    restart: "no"
+
+  # -------------------------
+  # Airflow Webserver
+  # -------------------------
+  airflow-webserver:
+    image: apache/airflow:2.7.1
+    container_name: airflow_webserver
+    environment:
+      <<: *airflow-common-env
+    ports:
+      - "8080:8080"
+    command: webserver
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./plugins:/opt/airflow/plugins
+      - airflow_logs:/opt/airflow/logs
+    <<: *airflow-common-depends
+    restart: always
+
+  # -------------------------
+  # Airflow Scheduler
+  # -------------------------
+  airflow-scheduler:
+    image: apache/airflow:2.7.1
+    container_name: airflow_scheduler
+    environment:
+      <<: *airflow-common-env
+    command: scheduler
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./plugins:/opt/airflow/plugins
+      - airflow_logs:/opt/airflow/logs
+    <<: *airflow-common-depends
+    restart: always
+
+  # -------------------------
+  # Airflow Worker
+  # -------------------------
+  airflow-worker:
+    image: apache/airflow:2.7.1
+    container_name: airflow_worker
+    environment:
+      <<: *airflow-common-env
+    command: celery worker
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./plugins:/opt/airflow/plugins
+      - airflow_logs:/opt/airflow/logs
+    <<: *airflow-common-depends
+    restart: always
+
+  # -------------------------
+  # Airflow Flower (Celery Monitoring)
+  # -------------------------
+  airflow-flower:
+    image: apache/airflow:2.7.1
+    container_name: airflow_flower
+    environment:
+      <<: *airflow-common-env
+    command: celery flower
+    ports:
+      - "5555:5555"
+    <<: *airflow-common-depends
+    restart: always
+
+  # -------------------------
+  # PgAdmin
+  # -------------------------
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
+volumes:
+  postgres_data:
+  pgadmin_data:
+  airflow_logs:

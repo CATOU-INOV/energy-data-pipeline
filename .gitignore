@@ -1,0 +1,44 @@
+# Environnement Python
+venv/
+env/
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Variables d'environnement — NE JAMAIS COMMITTER
+.env
+.env.*
+!.env.example
+
+# Données
+*.csv
+*.parquet
+*.avro
+datalake/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Logs Airflow
+logs/
+airflow.db
+airflow.cfg
+
+# Docker
+postgres_data/
+pgadmin_data/
+airflow_logs/
